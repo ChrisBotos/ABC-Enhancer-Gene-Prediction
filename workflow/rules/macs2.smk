@@ -1,7 +1,8 @@
 ## call macs2 -- if multiple accessibility inputs for one biosample, will aggregate into one output
 rule call_macs_peaks: 
 	input:
-		accessibility = get_accessibility_files,
+		accessibility = get_element_source_files,
+		control = get_element_source_control_files,
 	params:
 		pval = config['params_macs']['pval'],
 		genome_size = config['params_macs']['genome_size'],
@@ -18,6 +19,10 @@ rule call_macs_peaks:
 		else
 			FORMAT="AUTO"
 		fi
+		CONTROL=""
+		if [[ -n "{input.control}" ]]; then
+			CONTROL="-c {input.control}"
+		fi
 
 		macs2 callpeak \
 		-f $FORMAT \
@@ -30,7 +35,7 @@ rule call_macs_peaks:
 		--keep-dup all \
 		--call-summits \
 		--outdir {RESULTS_DIR}/{wildcards.biosample}/Peaks \
-		-t {input.accessibility} 
+		-t {input.accessibility} $CONTROL
 		"""
 
 rule generate_chrom_sizes_bed_file:

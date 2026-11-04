@@ -123,12 +123,36 @@ def get_accessibility_files(wildcards):
 	files = BIOSAMPLES_CONFIG.loc[wildcards.biosample, "DHS"] or BIOSAMPLES_CONFIG.loc[wildcards.biosample, "ATAC"]
 	return files.split(",")
 
+def get_optional_biosample_value(biosample, column):
+	# Optional columns may be absent from the biosamples table.
+	if column not in BIOSAMPLES_CONFIG.columns:
+		return None
+	return BIOSAMPLES_CONFIG.loc[biosample, column]
+
+def get_element_source_files(wildcards):
+	# Candidate regions are called on element_source when given, otherwise on DHS or ATAC.
+	files = get_optional_biosample_value(wildcards.biosample, "element_source")
+	if files:
+		return files.split(",")
+	return get_accessibility_files(wildcards)
+
+def get_element_source_control_files(wildcards):
+	# Control files for the MACS2 call on element_source, none by default.
+	files = get_optional_biosample_value(wildcards.biosample, "element_source_control")
+	if files:
+		return files.split(",")
+	return []
+
 
 def _validate_accessibility_feature(row: pd.Series):
 	if row["DHS"] and row["ATAC"]:
 		raise InvalidConfig("Can only specify one of DHS or ATAC for accessibility")
 	if not (row["DHS"] or row["ATAC"]):
 		raise InvalidConfig("Must provide either DHS or ATAC accessibility file")
+
+def _validate_element_source(row: pd.Series):
+	if row.get("element_source_control") and not row.get("element_source"):
+		raise InvalidConfig("element_source_control requires element_source")
 
 def _validate_hic_info(row: pd.Series):
 	if row["HiC_file"]:
@@ -144,6 +168,7 @@ def _validate_biosamples_config(biosamples_config):
 	for _, row in biosamples_config.iterrows():
 		_validate_hic_info(row)
 		_validate_accessibility_feature(row)
+		_validate_element_source(row)
 
 def _configure_tss_and_gene_files(biosamples_config):
 	## get TSS and genefile names for each biosample 
