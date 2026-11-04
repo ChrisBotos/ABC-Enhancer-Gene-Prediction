@@ -116,6 +116,7 @@ def annotate_genes_with_features(
     outdir=".",
     use_fast_count=True,
     default_accessibility_feature="",
+    expression_features={},
 ):
     # Setup files for counting
     bounds_bed = os.path.join(outdir, "GeneList.bed")
@@ -149,13 +150,26 @@ def annotate_genes_with_features(
 
     access_col = default_accessibility_feature + ".RPKM.quantile.TSS1Kb"
 
-    if "H3K27ac.RPKM.quantile.TSS1Kb" in merged.columns:
+    # Promoter activity is read from the expression tracks where given, so the
+    # expressed-gene call does not move when the DHS or H3K27ac input is replaced.
+    quantiles = get_promoter_quantiles_for_expression(
+        merged,
+        tss1kb,
+        tss1kb_file,
+        genome_sizes,
+        genome_sizes_bed,
+        expression_features,
+        outdir,
+        use_fast_count,
+    )
+
+    if "H3K27ac.RPKM.quantile.TSS1Kb" in quantiles.columns:
         merged["PromoterActivityQuantile"] = (
-            (0.0001 + merged["H3K27ac.RPKM.quantile.TSS1Kb"])
-            * (0.0001 + merged[access_col])
+            (0.0001 + quantiles["H3K27ac.RPKM.quantile.TSS1Kb"])
+            * (0.0001 + quantiles[access_col])
         ).rank(method="average", na_option="top", ascending=True, pct=True)
     else:
-        merged["PromoterActivityQuantile"] = ((0.0001 + merged[access_col])).rank(
+        merged["PromoterActivityQuantile"] = ((0.0001 + quantiles[access_col])).rank(
             method="average", na_option="top", ascending=True, pct=True
         )
 
@@ -168,6 +182,38 @@ def annotate_genes_with_features(
     )
 
     return merged
+
+
+def get_promoter_quantiles_for_expression(
+    merged,
+    tss1kb,
+    tss1kb_file,
+    genome_sizes,
+    genome_sizes_bed,
+    expression_features,
+    outdir,
+    use_fast_count,
+):
+    # Returns the TSS1Kb quantile columns, those of the expression features replacing
+    # the slot features of the same name. No expression feature leaves merged as is.
+    if not expression_features:
+        return merged
+    expression_counts = count_features_for_bed(
+        tss1kb,
+        tss1kb_file,
+        genome_sizes,
+        genome_sizes_bed,
+        expression_features,
+        outdir,
+        "Genes.TSS1kb.expression",
+        use_fast_count=use_fast_count,
+    ).set_index("name")
+    quantiles = merged.copy()
+    for feature in expression_features:
+        quantiles[feature + ".RPKM.quantile.TSS1Kb"] = quantiles["name"].map(
+            expression_counts[feature + ".RPKM.quantile"]
+        )
+    return quantiles
 
 
 def make_tss_region_file(genes, outdir, sizes, chrom_sizes_map, tss_slop=500):
@@ -715,6 +761,9 @@ def parse_params_file(args):
 
     params["default_accessibility_feature"] = determine_accessibility_feature(args)
     params["features"] = get_features(args)
+    params["expression_features"] = get_expression_features(
+        args, params["default_accessibility_feature"]
+    )
 
     if args.expression_table:
         params["expression_table"] = args.expression_table.split(",")
@@ -741,6 +790,16 @@ def get_features(args):
         for idx, row in supp.iterrows():
             features[row["feature_name"]] = row["file"].split(",")
 
+    return features
+
+
+def get_expression_features(args, default_accessibility_feature):
+    # Tracks counted only for PromoterActivityQuantile, named after the feature they replace.
+    features = {}
+    if getattr(args, "expression_H3K27ac", None):
+        features["H3K27ac"] = args.expression_H3K27ac.split(",")
+    if getattr(args, "expression_DHS", None):
+        features[default_accessibility_feature] = args.expression_DHS.split(",")
     return features
 
 

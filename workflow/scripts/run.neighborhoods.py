@@ -130,6 +130,18 @@ def parseargs(required_args=True):
         help="Annotation file to override enhancer class assignment",
     )
     parser.add_argument(
+        "--expression_DHS",
+        default="",
+        nargs="?",
+        help="Comma delimited string of accessibility files used only for PromoterActivityQuantile. Defaults to the DHS or ATAC files",
+    )
+    parser.add_argument(
+        "--expression_H3K27ac",
+        default="",
+        nargs="?",
+        help="Comma delimited string of H3K27ac files used only for PromoterActivityQuantile. Defaults to the H3K27ac files",
+    )
+    parser.add_argument(
         "--supplementary_features",
         default=None,
         help="Additional features to count over regions",
@@ -177,6 +189,7 @@ def processCellType(args):
             default_accessibility_feature=params["default_accessibility_feature"],
             features=params["features"],
             outdir=args.outdir,
+            expression_features=params["expression_features"],
         )
 
     # Setup Candidate Enhancers
