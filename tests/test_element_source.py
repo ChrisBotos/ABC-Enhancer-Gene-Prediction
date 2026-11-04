@@ -43,26 +43,19 @@ def dry_run_commands(biosample_row: dict, outdir: str) -> str:
     return subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
 
 
-def macs2_command(commands: str) -> str:
-    start = commands.index("macs2 callpeak")
-    return commands[start : commands.index("\n\n", start)]
-
-
 class TestElementSource(unittest.TestCase):
     def test_default_calls_peaks_on_accessibility(self) -> None:
         with tempfile.TemporaryDirectory() as outdir:
             commands = dry_run_commands({}, outdir)
-        macs2 = macs2_command(commands)
-        self.assertIn(f"-t {DHS_BAM}", macs2)
-        self.assertIn('CONTROL=""', commands)
+        self.assertIn(f"-t {DHS_BAM} $CONTROL", commands)
+        self.assertIn('if [[ -n "" ]]', commands)
         self.assertIn(f"--accessibility {DHS_BAM}", commands)
 
     def test_element_source_replaces_accessibility_for_candidates(self) -> None:
         row = {"element_source": H3K27AC_BAM, "element_source_control": DHS_BAM}
         with tempfile.TemporaryDirectory() as outdir:
             commands = dry_run_commands(row, outdir)
-        macs2 = macs2_command(commands)
-        self.assertIn(f"-t {H3K27AC_BAM}", macs2)
+        self.assertIn(f"-t {H3K27AC_BAM} $CONTROL", commands)
         self.assertIn(f'CONTROL="-c {DHS_BAM}"', commands)
         self.assertIn(f"--accessibility {H3K27AC_BAM}", commands)
         # Neighborhoods still count activity on the DHS column.
