@@ -133,6 +133,12 @@ def get_model_argument_parser():
         help="Diagonal bin of Hi-C matrix is set to this percentage of the maximum of its neighboring bins. Default value (100%) means that the diagonal bin of the Hi-C matrix will be set exactly to the maximum of its two neighboring bins. This is a parameter used in development of the ABC model that should not typically be changed, unless experimenting with using different types of input 3D contact data that require different handling of the diagonal bin.",
     )
 
+    parser.add_argument(
+        "--full_precision",
+        action="store_true",
+        help="Write ABC.Score.Numerator at full float precision instead of 6 decimals",
+    )
+
     # Other
     parser.add_argument(
         "--tss_slop",
@@ -271,6 +277,10 @@ def main():
     all_putative["CellType"] = args.cellType
     if args.hic_file:
         all_putative["hic_contact_squared"] = all_putative["hic_contact"] ** 2
+    if args.full_precision:
+        all_putative["ABC.Score.Numerator"] = format_full_precision(
+            all_putative["ABC.Score.Numerator"]
+        )
 
     all_putative.loc[all_putative.TargetGeneIsExpressed, :].to_csv(
         all_pred_file_expressed,
@@ -294,6 +304,11 @@ def main():
     test_variant_overlap(args, all_putative)
 
     print("Done.")
+
+
+def format_full_precision(values):
+    # The shortest text that reads back to the same float, so float_format leaves it.
+    return values.map(lambda value: "NaN" if pd.isna(value) else repr(float(value)))
 
 
 def validate_args(args):
