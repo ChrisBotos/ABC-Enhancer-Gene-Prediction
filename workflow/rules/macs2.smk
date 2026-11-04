@@ -1,3 +1,15 @@
+# MACS2 flags and peak ranking used when the config does not set them.
+DEFAULT_MACS_PARAMS = {
+	"flags": "--shift -75 --extsize 150 --nomodel --keep-dup all --call-summits",
+	"rank_by": "reads",
+}
+
+def get_macs_param(biosample, key):
+	# A per_biosample entry overrides the params_macs value, which overrides the default.
+	params_macs = config["params_macs"]
+	per_biosample = (params_macs.get("per_biosample") or {}).get(biosample) or {}
+	return per_biosample.get(key, params_macs.get(key, DEFAULT_MACS_PARAMS[key]))
+
 ## call macs2 -- if multiple accessibility inputs for one biosample, will aggregate into one output
 rule call_macs_peaks: 
 	input:
@@ -6,6 +18,7 @@ rule call_macs_peaks:
 	params:
 		pval = config['params_macs']['pval'],
 		genome_size = config['params_macs']['genome_size'],
+		flags = lambda wildcards: get_macs_param(wildcards.biosample, "flags"),
 	conda:
 		"../envs/abcenv.yml"
 	output: 
@@ -29,11 +42,7 @@ rule call_macs_peaks:
 		-g {params.genome_size} \
 		-p {params.pval} \
 		-n macs2 \
-		--shift -75 \
-		--extsize 150 \
-		--nomodel \
-		--keep-dup all \
-		--call-summits \
+		{params.flags} \
 		--outdir {RESULTS_DIR}/{wildcards.biosample}/Peaks \
 		-t {input.accessibility} $CONTROL
 		"""

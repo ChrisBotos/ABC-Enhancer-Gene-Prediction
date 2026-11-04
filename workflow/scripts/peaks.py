@@ -16,6 +16,7 @@ def make_candidate_regions_from_summits(
     n_enhancers,
     peak_extend,
     outdir,
+    rank_by="reads",
 ):
     ## Generate enhancer regions from MACS summits: 1. Count reads in DHS peaks 2. Take top N regions, get summits, extend summits, merge
     outfile = os.path.join(
@@ -25,8 +26,8 @@ def make_candidate_regions_from_summits(
     blocklist_command = get_blocklist_command(regions_blocklist)
 
     # 1. Count DHS/ATAC reads in candidate regions for all accessibility files provided, and return the filename of the average # reads
-    reads_out = get_read_counts(
-        accessibility_files, outdir, macs_peaks, genome_sizes, genome_sizes_bed
+    reads_out = get_peak_scores(
+        rank_by, accessibility_files, outdir, macs_peaks, genome_sizes, genome_sizes_bed
     )
 
     # 2. Take top N regions, get summits, extend summits, merge, remove blocklist, add includelist, sort and merge
@@ -62,6 +63,7 @@ def make_candidate_regions_from_peaks(
     peak_extend,
     minPeakWidth,
     outdir,
+    rank_by="reads",
 ):
     ## Generate enhancer regions from MACS narrowPeak - do not use summits
     outfile = os.path.join(
@@ -71,8 +73,8 @@ def make_candidate_regions_from_peaks(
     blocklist_command = get_blocklist_command(regions_blocklist)
 
     # 1. Count DHS/ATAC reads in candidate regions
-    reads_out = get_read_counts(
-        accessibility_files, outdir, macs_peaks, genome_sizes, genome_sizes_bed
+    reads_out = get_peak_scores(
+        rank_by, accessibility_files, outdir, macs_peaks, genome_sizes, genome_sizes_bed
     )
 
     # 2. Take top N regions, extend peaks (min size 500), merge, remove blocklist, add includelist, sort and merge
@@ -108,6 +110,29 @@ def get_blocklist_command(regions_blocklist):
         return f"bedtools intersect -v -wa -a stdin -b {regions_blocklist}"
     else:
         return ""
+
+
+def get_peak_scores(
+    rank_by, accessibility_files, outdir, macs_peaks, genome_sizes, genome_sizes_bed
+):
+    # Score each peak for the top N: reads in the peak, or the MACS2 fold enrichment.
+    if rank_by == "reads":
+        return get_read_counts(
+            accessibility_files, outdir, macs_peaks, genome_sizes, genome_sizes_bed
+        )
+    if rank_by == "enrichment":
+        return get_peak_enrichment(macs_peaks, outdir)
+    raise ValueError(f"rank_by must be reads or enrichment, not {rank_by}")
+
+
+def get_peak_enrichment(macs_peaks, outdir):
+    # Column 7 of a narrowPeak file is the fold enrichment at the peak summit.
+    enrichment_out = os.path.join(
+        outdir, os.path.basename(macs_peaks) + ".Enrichment.bed"
+    )
+    peaks = pd.read_csv(macs_peaks, sep="\t", header=None, usecols=[0, 1, 2, 6])
+    peaks.to_csv(enrichment_out, sep="\t", header=False, index=False)
+    return enrichment_out
 
 
 def get_read_counts(

@@ -48,6 +48,12 @@ def parseargs(required_args=True):
         help="Number of peaks to use for defining candidate regions",
     )
     parser.add_argument(
+        "--rankBy",
+        default="reads",
+        choices=["reads", "enrichment"],
+        help="Rank peaks by read counts in the accessibility files or by MACS2 fold enrichment",
+    )
+    parser.add_argument(
         "--peakExtendFromSummit",
         default=250,
         help="Number of base pairs to extend each preak from its summit (or from both ends of region if using --ignoreSummits)",
@@ -94,6 +100,7 @@ def processCellType(args):
             n_enhancers=args.nStrongestPeaks,
             peak_extend=args.peakExtendFromSummit,
             outdir=args.outDir,
+            rank_by=args.rankBy,
         )
     else:
         make_candidate_regions_from_peaks(
@@ -107,6 +114,7 @@ def processCellType(args):
             peak_extend=args.peakExtendFromSummit,
             minPeakWidth=args.minPeakWidth,
             outdir=args.outDir,
+            rank_by=args.rankBy,
         )
 
 

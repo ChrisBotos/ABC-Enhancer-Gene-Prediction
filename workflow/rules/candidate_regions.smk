@@ -9,6 +9,7 @@ rule make_candidate_regions:
 		regions_blocklist = config['ref']['regions_blocklist'],
 		peakExtendFromSummit = config['params_candidate']['peakExtendFromSummit'],
 		nStrongestPeak = config['params_candidate']['nStrongestPeaks'],
+		rank_by = lambda wildcards: get_macs_param(wildcards.biosample, "rank_by"),
 		output_dir = os.path.join(RESULTS_DIR, "{biosample}", "Peaks"),
 		scripts_dir = SCRIPTS_DIR,
 	conda:
@@ -28,5 +29,6 @@ rule make_candidate_regions:
 			--regions_blocklist {params.regions_blocklist} \
 			--regions_includelist {params.TSS} \
 			--peakExtendFromSummit {params.peakExtendFromSummit} \
-			--nStrongestPeak {params.nStrongestPeak}
+			--nStrongestPeak {params.nStrongestPeak} \
+			--rankBy {params.rank_by}
 		"""

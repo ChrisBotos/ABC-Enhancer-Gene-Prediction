@@ -23,6 +23,13 @@ params_macs:
         pval: 0.1
         genome_size: hs  # shortcuts: hs: human ; mm: mice
         threads: 10
+        # MACS2 flags after -n, and how the strongest peaks are ranked: reads counts the
+        # candidate-source reads in each peak, enrichment takes the MACS2 fold enrichment.
+        # A flag given here also overrides the -f format chosen from the file name.
+        flags: "--shift -75 --extsize 150 --nomodel --keep-dup all --call-summits"
+        rank_by: reads
+        # Optional flags and rank_by per biosample, e.g. {K562_SuRE: {flags: "...", rank_by: enrichment}}.
+        per_biosample: {}
 
 # These parameters are used to run the Run Candidate Regions portion of the abc code 
 params_candidate:
